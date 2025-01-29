@@ -1,6 +1,6 @@
 name: Build
 
-on: 
+on:
   pull_request:
     branches:
       - qa
@@ -28,7 +28,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Setup python
@@ -49,9 +49,9 @@ jobs:
 
       - name: Bump version and push
         run: |
-            poetry run cz bump --yes
-            git push --force
-            git push --tags
+          poetry run cz bump --yes
+          git push --force
+          git push --tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -65,7 +65,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with: 
+        with:
           ref: ${{ github.ref }}
 
       - name: Setup python
@@ -97,7 +97,7 @@ jobs:
             ./dist/rewst_remote_agent.exe
             ./dist/rewst_agent_config.exe
 
-  sign:
+  sign-and-release:
     runs-on: windows-latest
     needs: build
     if: |
@@ -107,7 +107,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
       - name: Download compiled assets
         uses: actions/download-artifact@v4
@@ -139,3 +141,17 @@ jobs:
             ./dist/signed/rewst_service_manager.exe.sha256
             ./dist/signed/rewst_remote_agent.exe.sha256
             ./dist/signed/rewst_agent_config.exe.sha256
+
+      - name: Extract version
+        if: github.ref == 'refs/heads/main'
+        id: extract_version
+        run: echo "version=v$(poetry version --short)" >> $GITHUB_OUTPUT
+
+      - name: Create release and upload files
+        if: github.ref == 'refs/heads/main'
+        run: |
+          gh release create ${{ env.VERSION }} --generate-notes --prerelease ./dist/signed/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.extract_version.outputs.version }}
+
