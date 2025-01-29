@@ -16,6 +16,8 @@ jobs:
 
     steps:
       - run: echo "Merged pull request detected"
+      - run: echo "Running with GITHUB_REF=$GITHUB_REF"
+      - run: echo "Running with GITHUB_HEAD_REF=$GITHUB_HEAD_REF"
 
   bump-version:
     runs-on: ubuntu-latest
@@ -64,7 +66,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with: 
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.ref }}
 
       - name: Setup python
         uses: actions/setup-python@v4
@@ -98,7 +100,10 @@ jobs:
   sign:
     runs-on: windows-latest
     needs: build
-    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main'
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
 
     steps:
       - name: Checkout code
